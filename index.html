@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>madzia — sklep</title>
+  <style>
+    :root{--bg:#f7f7f9;--card:#fff;--accent:#e07a5f;--muted:#6b6b6b}
+    *{box-sizing:border-box;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial}
+    body{margin:0;background:var(--bg);color:#222}
+    header{background:linear-gradient(90deg,#fff 0%, #fff 60%, rgba(224,122,95,0.06)100%);padding:28px 24px;border-bottom:1px solid rgba(0,0,0,0.04);}
+    .container{max-width:1100px;margin:0 auto}
+    h1{margin:0;font-size:28px;letter-spacing:0.4px}
+    p.lead{margin:6px 0 0;color:var(--muted)}
+
+    .controls{display:flex;gap:12px;align-items:center;margin-top:18px}
+    .search{flex:1;display:flex}
+    .search input{width:100%;padding:10px 14px;border-radius:12px;border:1px solid rgba(0,0,0,0.08);outline:none}
+    .select, .btn{padding:10px 12px;border-radius:10px;border:1px solid rgba(0,0,0,0.06);background:#fff}
+
+    main{padding:28px 24px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px}
+    .card{background:var(--card);border-radius:14px;padding:12px;box-shadow:0 6px 18px rgba(11,11,13,0.05);border:1px solid rgba(0,0,0,0.03);display:flex;flex-direction:column}
+    .thumb{height:170px;border-radius:10px;overflow:hidden;display:block;background:#eee;margin-bottom:10px}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .meta{display:flex;align-items:center;justify-content:space-between}
+    .title{font-weight:600;font-size:15px}
+    .price{color:var(--accent);font-weight:700}
+    .cat{font-size:12px;color:var(--muted)}
+    .actions{margin-top:10px;display:flex;gap:8px}
+    .primary{flex:1;padding:8px;border-radius:10px;border:none;background:var(--accent);color:#fff;cursor:pointer}
+    .ghost{padding:8px;border-radius:10px;border:1px solid rgba(0,0,0,0.06);background:#fff;cursor:pointer}
+
+    footer{padding:24px;text-align:center;color:var(--muted);font-size:13px}
+
+    @media (max-width:520px){header{padding:18px} .controls{flex-direction:column;align-items:stretch} .search input{padding:12px}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>madzia — mały sklep</h1>
+      <p class="lead">Kilka losowych produktów. Zdjęcia powiązane z Pinterest (linki źródłowe pod zdjęciami).</p>
+
+      <div class="controls">
+        <div class="search">
+          <input id="q" placeholder="Szukaj produktu... (np. torba, paleta, kubek)" />
+        </div>
+        <select id="category" class="select">
+          <option value="all">Wszystkie kategorie</option>
+          <option value="fashion">Moda</option>
+          <option value="beauty">Kosmetyki</option>
+          <option value="home">Dom</option>
+        </select>
+        <select id="sort" class="select">
+          <option value="default">Sortuj</option>
+          <option value="price-asc">Cena rosnąco</option>
+          <option value="price-desc">Cena malejąco</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <div id="grid" class="grid"></div>
+    </div>
+  </main>
+
+  <footer>
+    Projekt: madzia · Przykładowy sklep demo. Kliknij "Źródło (Pinterest)" aby zobaczyć oryginalną grafikę na Pinterest.
+  </footer>
+
+  <script>
+    // Przykładowe produkty. Obrazy używane tutaj to placeholdery (picsum) — dla wygody wstawione są linki do pinów Pinterest jako źródła.
+    // Jeśli chcesz, mogę podmienić miniaturki na rzeczywiste obrazy pobrane z Pinterest (potrzebuję bezpośrednich linków do plików obrazów).
+
+    const products = [
+      {id:1,name:'Torba codzienna',price:129,cat:'fashion',img:'https://picsum.photos/id/1025/600/400',pinterest:'https://www.pinterest.com/pin/38984353012690484/'},
+      {id:2,name:'Paleta do makijażu',price:79,cat:'beauty',img:'https://picsum.photos/id/237/600/400',pinterest:'https://www.pinterest.com/pin/362469470013628970/'},
+      {id:3,name:'Kubek ceramiczny',price:39,cat:'home',img:'https://picsum.photos/id/1060/600/400',pinterest:'https://www.pinterest.com/pin/546483736035482531/'},
+      {id:4,name:'T-shirt oversize',price:89,cat:'fashion',img:'https://picsum.photos/id/1005/600/400',pinterest:'https://www.pinterest.com/pin/20969954507074868/'},
+      {id:5,name:'Zestaw świec',price:59,cat:'home',img:'https://picsum.photos/id/1056/600/400',pinterest:'https://www.pinterest.com/pin/162903711516200729/'},
+      {id:6,name:'Szminka matowa',price:49,cat:'beauty',img:'https://picsum.photos/id/1011/600/400',pinterest:'https://www.pinterest.com/pin/386957792981597181/'},
+      {id:7,name:'Notes A5',price:29,cat:'home',img:'https://picsum.photos/id/1018/600/400',pinterest:'https://www.pinterest.com/pin/954481714774772868/'},
+      {id:8,name:'Biżuteria minimalistyczna',price:199,cat:'fashion',img:'https://picsum.photos/id/1084/600/400',pinterest:'https://www.pinterest.com/pin/546483736035482531/'}
+    ];
+
+    const grid = document.getElementById('grid');
+
+    function render(list){
+      grid.innerHTML = '';
+      list.forEach(p => {
+        const el = document.createElement('article');
+        el.className = 'card';
+        el.innerHTML = `
+          <a class="thumb" href="${p.pinterest}" target="_blank" rel="noopener">
+            <img loading="lazy" src="${p.img}" alt="${p.name}" />
+          </a>
+          <div style="flex:1;">
+            <div class="meta">
+              <div>
+                <div class="title">${p.name}</div>
+                <div class="cat">kategoria: ${p.cat}</div>
+              </div>
+              <div class="price">${p.price} zł</div>
+            </div>
+            <div class="actions">
+              <button class="primary" onclick="addCart(${p.id})">Do koszyka</button>
+              <a class="ghost" href="${p.pinterest}" target="_blank" rel="noopener">Źródło (Pinterest)</a>
+            </div>
+          </div>
+        `;
+        grid.appendChild(el);
+      })
+    }
+
+    // Proste funkcje: wyszukiwanie, filtrowanie, sortowanie
+    function applyFilters(){
+      const q = document.getElementById('q').value.trim().toLowerCase();
+      const cat = document.getElementById('category').value;
+      const sort = document.getElementById('sort').value;
+
+      let list = products.filter(p => {
+        const matchQ = p.name.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q);
+        const matchCat = (cat === 'all') ? true : p.cat === cat;
+        return matchQ && matchCat;
+      });
+
+      if(sort === 'price-asc') list.sort((a,b)=>a.price-b.price);
+      if(sort === 'price-desc') list.sort((a,b)=>b.price-a.price);
+
+      render(list);
+    }
+
+    document.getElementById('q').addEventListener('input', applyFilters);
+    document.getElementById('category').addEventListener('change', applyFilters);
+    document.getElementById('sort').addEventListener('change', applyFilters);
+
+    // Koszyk (prosty alert) — demo
+    function addCart(id){
+      const p = products.find(x=>x.id===id);
+      alert(`Dodano do koszyka: ${p.name} — ${p.price} zł`);
+    }
+
+    // Pierwotny render
+    render(products);
+  </script>
+</body>
+</html>
