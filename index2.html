@@ -1,0 +1,35 @@
+
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Pobieranie APK</title>
+</head>
+<body style="font-family: Arial; text-align: center; margin-top: 100px;">
+
+    <h2>Podaj hasło</h2>
+    <input type="password" id="password">
+    <br><br>
+    <button onclick="download()">Pobierz</button>
+
+    <p id="error" style="color:red;"></p>
+
+    <script>
+        function download() {
+            const pass = document.getElementById("password").value;
+
+            if (pass === "1122") {
+                const link = document.createElement("a");
+                link.href = "https://drive.google.com/uc?export=download&id=1skg1WwpDRhcKxhCdP1CVhZ9ZUYfA_CbP";
+                link.download = "app.apk";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                document.getElementById("error").innerText = "Złe hasło!";
+            }
+        }
+    </script>
+
+</body>
+</html>
