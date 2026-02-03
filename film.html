@@ -8,45 +8,69 @@
     <style>
         body {
             margin: 0;
-            background: #0b0b0b;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             font-family: Arial, Helvetica, sans-serif;
-            color: #ccc;
+            color: #fff;
+            backdrop-filter: blur(18px);
         }
 
-        .app {
-            display: none;
-            padding: 20px;
+        .overlay {
+            background: rgba(0,0,0,0.70);
+            min-height: 100vh;
+            padding-bottom: 40px;
         }
 
-		
+        /* TRAILER NA GÓRZE */
+        .trailer-box {
+            width: 100%;
+            height: 420px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .trailer-box iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* UKŁAD 2 KOLUMN */
         .container {
-            max-width: 1100px;
-            margin: 40px auto;
-            padding: 20px;
-        }
-
-        .movie-box {
-            display: flex;
+            max-width: 1400px;
+            margin: auto;
+            display: grid;
+            grid-template-columns: 420px 1fr;
             gap: 40px;
-            align-items: flex-start;
+            padding: 20px;
+            margin-top: -120px; /* plakat nachodzi trailer */
+            position: relative;
+            z-index: 2;
         }
 
         .poster {
-            width: 320px;
+            width: 100%;
             border-radius: 12px;
             box-shadow: 0 0 25px #000;
+            transform: translateY(-40px); /* efekt nachodzenia */
         }
 
         h1 {
-            margin: 0;
-            color: #fff;
-            font-size: 36px;
+            margin-top: 10px;
+            font-size: 42px;
         }
 
-        h3 {
-            margin: 5px 0 20px;
-            color: #888;
-            font-size: 20px;
+        .rating {
+            color: #f5c518;
+            font-size: 22px;
+            margin: 10px 0;
+        }
+
+        .genres {
+            margin-top: 5px;
+            font-size: 18px;
+            color: #ccc;
         }
 
         .buttons button {
@@ -54,77 +78,133 @@
             padding: 12px 22px;
             border: none;
             border-radius: 25px;
-            background: #e50914;
+            background: #333;
             color: #fff;
             cursor: pointer;
             font-size: 16px;
         }
 
-        .buttons button:nth-child(2) {
-            background: #333;
-            margin-left: 10px;
-        }
-
-        iframe {
-            margin-top: 40px;
+        /* ODTWARZACZ FILMU */
+        .player iframe {
             width: 100%;
-            height: 480px;
+            height: 500px;
             border-radius: 12px;
             border: none;
+            box-shadow: 0 0 25px #000;
         }
 
-        .label {
-            margin-top: 15px;
-            font-size: 18px;
-            color: #bbb;
+        /* OPIS POD ODTWARZACZEM */
+        .desc-box {
+            max-width: 1400px;
+            margin: 40px auto;
+            padding: 20px;
+            font-size: 20px;
+            color: #ddd;
+            line-height: 1.6;
         }
     </style>
 </head>
 
 <body>
 
-<div class="container">
-    <div id="movie"></div>
+<div class="overlay">
+
+    <!-- TRAILER NA GÓRZE -->
+    <div class="trailer-box">
+        <iframe id="trailerFrame" allowfullscreen></iframe>
+    </div>
+
+    <!-- GŁÓWNY UKŁAD -->
+    <div class="container">
+
+        <!-- LEWA STRONA -->
+        <div>
+            <img id="poster" class="poster">
+
+            <h1 id="title"></h1>
+            <div class="rating" id="rating"></div>
+            <div class="genres" id="genres"></div>
+
+            <div class="buttons">
+                <button onclick="history.back()">◀ Wróć</button>
+            </div>
+        </div>
+
+        <!-- PRAWA STRONA — ODTWARZACZ FILMU -->
+        <div class="player">
+            <iframe id="playerFrame" allowfullscreen></iframe>
+        </div>
+
+    </div>
+
+    <!-- OPIS POD ODTWARZACZEM -->
+    <div class="desc-box" id="desc"></div>
+
 </div>
 
 <script>
+const TMDB_KEY = "bb6f3e486fbce89586745ded69c13681";
 const MASTER_KEY = "$2a$10$gYn6RI7zmyY4F2EVTo1oOuoMmPmi9SxaNVNm1Y4.XJQrRFX8ZIKnS";
 const MOVIES_URL = "https://api.jsonbin.io/v3/b/6981d78f43b1c97be961f419/latest";
+
+/* TŁUMACZENIE OPISU NA POLSKI */
+async function translateToPolish(text) {
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|pl`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.responseData.translatedText || text;
+}
 
 async function loadMovie() {
     const params = new URLSearchParams(window.location.search);
     const id = params.get("id");
 
-    const res = await fetch(MOVIES_URL, {
-        headers: { "X-Master-Key": MASTER_KEY }
-    });
-
+    const res = await fetch(MOVIES_URL, { headers: { "X-Master-Key": MASTER_KEY }});
     const data = await res.json();
-    const movie = data.record[id];
+    const movies = data.record;
 
-    document.getElementById("movie").innerHTML = `
-        <div class="movie-box">
-            <img class="poster" src="${movie.imageUrl}">
+    const movie = movies[id];
 
-            <div>
-                <h1>${movie.title}</h1>
-                <h3>${movie.titleEn}</h3>
+    /* TMDB */
+    const tmdbRes = await fetch(
+        `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(movie.titleEn)}`
+    );
+    const tmdbData = await tmdbRes.json();
+    const tmdb = tmdbData.results?.[0];
 
-                <div class="label">Film dostępny w jakości HD</div>
+    if (!tmdb) return;
 
-                <div class="buttons">
-                    <button onclick="window.open('${movie.videoLink}', '_blank')">▶ Odtwórz film</button>
-                    <button onclick="history.back()">◀ Wróć</button>
-                </div>
-            </div>
-        </div>
+    /* BACKDROP NA CAŁĄ STRONĘ */
+    document.body.style.backgroundImage =
+        `url(https://image.tmdb.org/t/p/original${tmdb.backdrop_path})`;
 
-        <iframe 
-            src="https://www.youtube.com/embed/${movie.trailerId}?autoplay=1&mute=1"
-            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen>
-        </iframe>
-    `;
+    /* TRAILER NA GÓRZE */
+    document.getElementById("trailerFrame").src =
+        `https://www.youtube.com/embed/${movie.trailerId}?autoplay=0&mute=0`;
+
+    /* LEWA STRONA */
+    document.getElementById("poster").src =
+        `https://image.tmdb.org/t/p/w500${tmdb.poster_path}`;
+
+    document.getElementById("title").innerText = movie.title;
+    document.getElementById("rating").innerText = `⭐ ${tmdb.vote_average}`;
+
+    const genreNames = {
+        28: "Akcja", 12: "Przygodowy", 16: "Animacja", 35: "Komedia",
+        80: "Kryminał", 18: "Dramat", 14: "Fantasy", 27: "Horror",
+        9648: "Tajemnica", 10749: "Romans", 878: "Sci‑Fi", 53: "Thriller",
+        10752: "Wojenny", 37: "Western"
+    };
+
+    document.getElementById("genres").innerText =
+        tmdb.genre_ids.map(id => genreNames[id] || "").join(", ");
+
+    /* OPIS POD ODTWARZACZEM */
+    const translated = await translateToPolish(tmdb.overview);
+    document.getElementById("desc").innerText = translated;
+
+    /* PRAWA STRONA — ODTWARZACZ FILMU */
+    document.getElementById("playerFrame").src = movie.videoLink;
 }
 
 loadMovie();
