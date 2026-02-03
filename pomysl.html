@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodaj film – TvSuper</title>
+
+    <style>
+        body {
+            margin: 0;
+            background: #0b0b0b;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #ddd;
+            overflow-x: hidden;
+        }
+
+        .box {
+            max-width: 500px;
+            margin: 40px;
+            background: #111;
+            padding: 30px;
+            border-radius: 10px;
+        }
+
+        h2 {
+            color: #fff;
+            margin-top: 0;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 12px;
+            border-radius: 8px;
+            border: none;
+            background: #222;
+            color: #ccc;
+        }
+
+        button {
+            padding: 12px 20px;
+            margin-top: 16px;
+            border: none;
+            border-radius: 8px;
+            background: #333;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #444;
+        }
+
+        .back {
+            background: #222;
+        }
+
+        .admin-toggle {
+            margin-left: 10px;
+            background: #444;
+        }
+
+        /* PANEL ADMINA */
+        .admin-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 380px;
+            height: 100vh;
+            background: #151515;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.7);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            padding: 20px;
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .admin-panel.open {
+            transform: translateX(0);
+        }
+
+        .admin-panel h3 {
+            margin-top: 0;
+            color: #fff;
+        }
+
+        .admin-login input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 6px;
+            border: none;
+            background: #222;
+            color: #ccc;
+        }
+
+        .admin-login button {
+            width: 100%;
+            margin-top: 12px;
+        }
+
+        .proposal {
+            border-bottom: 1px solid #333;
+            padding: 10px 0;
+        }
+
+        .proposal img {
+            width: 80px;
+            height: 110px;
+            object-fit: cover;
+            border-radius: 6px;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .proposal-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .proposal-small {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .proposal button {
+            padding: 6px 10px;
+            font-size: 11px;
+            margin-right: 6px;
+            margin-top: 6px;
+            border-radius: 6px;
+        }
+
+        .btn-accept {
+            background: #1f7a1f;
+        }
+
+        .btn-edit {
+            background: #555;
+        }
+
+        .btn-delete {
+            background: #7a1f1f;
+        }
+
+        .close-admin {
+            background: #333;
+            width: 100%;
+            margin-top: 16px;
+        }
+
+        #status {
+            margin-top: 16px;
+            color: #0f0;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="box">
+    <h2>Dodaj nowy film (propozycja)</h2>
+
+    <input id="titlePl" type="text" placeholder="Tytuł PL">
+    <input id="titleEn" type="text" placeholder="Tytuł EN">
+    <input id="videoLink" type="text" placeholder="Link do filmu">
+    <input id="imageUrl" type="text" placeholder="Link do plakatu">
+    <input id="trailerId" type="text" placeholder="ID trailera YouTube">
+
+    <button onclick="addProposal()">WYŚLIJ PROPOZYCJĘ</button>
+    <button class="back" onclick="goBack()">WRÓĆ</button>
+    <button class="admin-toggle" onclick="toggleAdmin()">PANEL ADMINA</button>
+
+    <p id="status">Propozycja wysłana do panelu admina.</p>
+</div>
+
+<!-- PANEL ADMINA -->
+<div id="adminPanel" class="admin-panel">
+    <h3>Panel admina</h3>
+
+    <div id="adminLogin" class="admin-login">
+        <p>Podaj hasło admina:</p>
+        <input id="adminPass" type="password" placeholder="hasło admina">
+        <button onclick="loginAdmin()">ZALOGUJ</button>
+        <p id="adminError" style="color:#f55; display:none;">Niepoprawne hasło</p>
+    </div>
+
+    <div id="adminContent" style="display:none;">
+        <h4>Propozycje filmów</h4>
+        <div id="proposalsList"></div>
+
+        <h4 style="margin-top:20px;">Filmy główne</h4>
+        <div id="moviesList"></div>
+
+        <button class="close-admin" onclick="toggleAdmin()">ZAMKNIJ PANEL</button>
+    </div>
+</div>
+
+<script>
+const MASTER_KEY = "$2a$10$gYn6RI7zmyY4F2EVTo1oOuoMmPmi9SxaNVNm1Y4.XJQrRFX8ZIKnS";
+
+const BIN_MOVIES = "6981d78f43b1c97be961f419";      // główna lista filmów
+const BIN_PROPOSALS = "698239fed0ea881f409e25d5";   // propozycje filmów
+const BIN_PASSWORDS = "6981e62b43b1c97be9621000";   // hasła (haslo, haslo2)
+
+let adminLogged = false;
+let adminPassword2 = "";
+let proposals = [];
+let movies = [];
+
+/* ======================
+   PROPOZYCJA FILMU
+====================== */
+async function addProposal() {
+    const titlePl = document.getElementById("titlePl").value.trim();
+    const titleEn = document.getElementById("titleEn").value.trim();
+    const videoLink = document.getElementById("videoLink").value.trim();
+    const imageUrl = document.getElementById("imageUrl").value.trim();
+    const trailerId = document.getElementById("trailerId").value.trim();
+
+    if (!titlePl || !titleEn || !videoLink || !imageUrl || !trailerId) {
+        alert("Wypełnij wszystkie pola!");
+        return;
+    }
+
+    // pobierz aktualne propozycje
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_PROPOSALS}/latest`, {
+        headers: { "X-Master-Key": MASTER_KEY }
+    });
+    const data = await res.json();
+    const list = Array.isArray(data.record) ? data.record : [];
+
+    list.push({
+        title: titlePl,
+        titleEn: titleEn,
+        videoLink: videoLink,
+        imageUrl: imageUrl,
+        trailerId: trailerId
+    });
+
+    await fetch(`https://api.jsonbin.io/v3/b/${BIN_PROPOSALS}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Master-Key": MASTER_KEY
+        },
+        body: JSON.stringify(list)
+    });
+
+    document.getElementById("status").style.display = "block";
+
+    document.getElementById("titlePl").value = "";
+    document.getElementById("titleEn").value = "";
+    document.getElementById("videoLink").value = "";
+    document.getElementById("imageUrl").value = "";
+    document.getElementById("trailerId").value = "";
+}
+
+/* ======================
+   PANEL ADMINA – UI
+====================== */
+function toggleAdmin() {
+    const panel = document.getElementById("adminPanel");
+    panel.classList.toggle("open");
+}
+
+/* ======================
+   LOGOWANIE ADMINA
+====================== */
+async function loadAdminPassword() {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_PASSWORDS}/latest`, {
+        headers: { "X-Master-Key": MASTER_KEY }
+    });
+    const data = await res.json();
+    adminPassword2 = data.record[2].haslo2;
+}
+
+async function loginAdmin() {
+    if (!adminPassword2) {
+        await loadAdminPassword();
+    }
+
+    const input = document.getElementById("adminPass").value.trim();
+
+    if (input === adminPassword2) {
+        adminLogged = true;
+        document.getElementById("adminLogin").style.display = "none";
+        document.getElementById("adminContent").style.display = "block";
+        loadProposals();
+        loadMovies();
+    } else {
+        document.getElementById("adminError").style.display = "block";
+    }
+}
+
+/* ======================
+   POBIERANIE PROPOZYCJI
+====================== */
+async function loadProposals() {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_PROPOSALS}/latest`, {
+        headers: { "X-Master-Key": MASTER_KEY }
+    });
+    const data = await res.json();
+    proposals = Array.isArray(data.record) ? data.record : [];
+    renderProposals();
+}
+
+function renderProposals() {
+    const container = document.getElementById("proposalsList");
+    container.innerHTML = "";
+
+    if (proposals.length === 0) {
+        container.innerHTML = "<p>Brak propozycji.</p>";
+        return;
+    }
+
+    proposals.forEach((p, index) => {
+        const div = document.createElement("div");
+        div.className = "proposal";
+
+        div.innerHTML = `
+            <img src="${p.imageUrl}" alt="">
+            <div class="proposal-title">${p.title}</div>
+            <div class="proposal-small">${p.titleEn}</div>
+            <div class="proposal-small">Trailer: ${p.trailerId}</div>
+            <div class="proposal-small" style="word-break:break-all;">Link: ${p.videoLink}</div>
+        `;
+
+        const btnAccept = document.createElement("button");
+        btnAccept.className = "btn-accept";
+        btnAccept.textContent = "DODAJ DO GŁÓWNYCH";
+        btnAccept.onclick = () => approveProposal(index);
+
+        const btnEdit = document.createElement("button");
+        btnEdit.className = "btn-edit";
+        btnEdit.textContent = "EDYTUJ";
+        btnEdit.onclick = () => editProposal(index);
+
+        const btnDelete = document.createElement("button");
+        btnDelete.className = "btn-delete";
+        btnDelete.textContent = "USUŃ";
+        btnDelete.onclick = () => deleteProposal(index);
+
+        div.appendChild(btnAccept);
+        div.appendChild(btnEdit);
+        div.appendChild(btnDelete);
+
+        container.appendChild(div);
+    });
+}
+
+/* ======================
+   POBIERANIE GŁÓWNYCH FILMÓW
+====================== */
+async function loadMovies() {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_MOVIES}/latest`, {
+        headers: { "X-Master-Key": MASTER_KEY }
+    });
+    const data = await res.json();
+    movies = Array.isArray(data.record) ? data.record : [];
+    renderMoviesAdmin();
+}
+
+function renderMoviesAdmin() {
+    const container = document.getElementById("moviesList");
+    container.innerHTML = "";
+
+    if (movies.length === 0) {
+        container.innerHTML = "<p>Brak filmów.</p>";
+        return;
+    }
+
+    movies.forEach((m, index) => {
+        const div = document.createElement("div");
+        div.className = "proposal";
+
+        div.innerHTML = `
+            <div class="proposal-title">${m.title}</div>
+            <div class="proposal-small">${m.titleEn}</div>
+        `;
+
+        const btnEdit = document.createElement("button");
+        btnEdit.className = "btn-edit";
+        btnEdit.textContent = "EDYTUJ";
+        btnEdit.onclick = () => editMovie(index);
+
+        const btnDelete = document.createElement("button");
+        btnDelete.className = "btn-delete";
+        btnDelete.textContent = "USUŃ";
+        btnDelete.onclick = () => deleteMovie(index);
+
+        div.appendChild(btnEdit);
+        div.appendChild(btnDelete);
+
+        container.appendChild(div);
+    });
+}
+
+/* ======================
+   AKCJE NA PROPOZYCJACH
+====================== */
+async function approveProposal(index) {
+    const movie = proposals[index];
+
+    // doładuj filmy
+    await loadMovies();
+
+    movies.push(movie);
+
+    // zapisz główne filmy
+    await fetch(`https://api.jsonbin.io/v3/b/${BIN_MOVIES}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Master-Key": MASTER_KEY
+        },
+        body: JSON.stringify(movies)
+    });
+
+    // usuń z propozycji
+    proposals.splice(index, 1);
+
+    await fetch(`https://api.jsonbin.io/v3/b/${BIN_PROPOSALS}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Master-Key": MASTER_KEY
+        },
+        body: JSON.stringify(proposals)
+    });
+
+    loadProposals();
+    loadMovies();
+}
+
+async function editProposal(index) {
+    const p = proposals[index];
+
+    const newTitlePl = prompt("Tytuł PL:", p.title) ?? p.title;
+    const newTitleEn = prompt("Tytuł EN:", p.titleEn) ?? p.titleEn;
+    const newVideo = prompt("Link do filmu:", p.videoLink) ?? p.videoLink;
+    const newImage = prompt("Link do plakatu:", p.imageUrl) ?? p.imageUrl;
+    const newTrailer = prompt("ID trailera:", p.trailerId) ?? p.trailerId;
+
+    proposals[index] = {
+        title: newTitlePl,
+        titleEn: newTitleEn,
+        videoLink: newVideo,
+        imageUrl: newImage,
+        trailerId: newTrailer
+    };
+
+    await fetch(`https://api.jsonbin.io/v3/b/${BIN_PROPOSALS}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Master-Key": MASTER_KEY
+        },
+        body: JSON.stringify(proposals)
+    });
+
+    loadProposals();
+}
+
+async function deleteProposal(index) {
+    if (!confirm("Na pewno usunąć tę propozycję?")) return;
+
+    proposals.splice(index, 1);
+
+    await fetch(`https://api.jsonbin.io/v3/b/${BIN_PROPOSALS}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Master-Key": MASTER_KEY
+        },
+        body: JSON.stringify(proposals)
+    });
+
+    loadProposals();
+}
+
+/* ======================
+   AKCJE NA GŁÓWNYCH FILMACH
+====================== */
+async function editMovie(index) {
+    const m = movies[index];
+
+    const newTitlePl = prompt("Tytuł PL:", m.title) ?? m.title;
+    const newTitleEn = prompt("Tytuł EN:", m.titleEn) ?? m.titleEn;
+    const newVideo = prompt("Link do filmu:", m.videoLink) ?? m.videoLink;
+    const newImage = prompt("Link do plakatu:", m.imageUrl) ?? m.imageUrl;
+    const newTrailer = prompt("ID trailera:", m.trailerId) ?? m.trailerId;
+
+    movies[index] = {
+        title: newTitlePl,
+        titleEn: newTitleEn,
+        videoLink: newVideo,
+        imageUrl: newImage,
+        trailerId: newTrailer
+    };
+
+    await fetch(`https://api.jsonbin.io/v3/b/${BIN_MOVIES}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Master-Key": MASTER_KEY
+        },
+        body: JSON.stringify(movies)
+    });
+
+    loadMovies();
+}
+
+async function deleteMovie(index) {
+    if (!confirm("Na pewno usunąć ten film z głównej listy?")) return;
+
+    movies.splice(index, 1);
+
+    await fetch(`https://api.jsonbin.io/v3/b/${BIN_MOVIES}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Master-Key": MASTER_KEY
+        },
+        body: JSON.stringify(movies)
+    });
+
+    loadMovies();
+}
+
+/* ======================
+   INNE
+====================== */
+function goBack() {
+    window.location.href = "addons.html";
+}
+</script>
+
+</body>
+</html>
