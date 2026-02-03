@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Film – TvSuper</title>
+
+    <style>
+        body {
+            margin: 0;
+            background: #0b0b0b;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #ccc;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .movie-box {
+            display: flex;
+            gap: 40px;
+            align-items: flex-start;
+        }
+
+        .poster {
+            width: 320px;
+            border-radius: 12px;
+            box-shadow: 0 0 25px #000;
+        }
+
+        h1 {
+            margin: 0;
+            color: #fff;
+            font-size: 36px;
+        }
+
+        h3 {
+            margin: 5px 0 20px;
+            color: #888;
+            font-size: 20px;
+        }
+
+        .buttons button {
+            margin-top: 20px;
+            padding: 12px 22px;
+            border: none;
+            border-radius: 25px;
+            background: #e50914;
+            color: #fff;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .buttons button:nth-child(2) {
+            background: #333;
+            margin-left: 10px;
+        }
+
+        iframe {
+            margin-top: 40px;
+            width: 100%;
+            height: 480px;
+            border-radius: 12px;
+            border: none;
+        }
+
+        .label {
+            margin-top: 15px;
+            font-size: 18px;
+            color: #bbb;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <div id="movie"></div>
+</div>
+
+<script>
+const MASTER_KEY = "$2a$10$gYn6RI7zmyY4F2EVTo1oOuoMmPmi9SxaNVNm1Y4.XJQrRFX8ZIKnS";
+const MOVIES_URL = "https://api.jsonbin.io/v3/b/6981d78f43b1c97be961f419/latest";
+
+async function loadMovie() {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+
+    const res = await fetch(MOVIES_URL, {
+        headers: { "X-Master-Key": MASTER_KEY }
+    });
+
+    const data = await res.json();
+    const movie = data.record[id];
+
+    document.getElementById("movie").innerHTML = `
+        <div class="movie-box">
+            <img class="poster" src="${movie.imageUrl}">
+
+            <div>
+                <h1>${movie.title}</h1>
+                <h3>${movie.titleEn}</h3>
+
+                <div class="label">Film dostępny w jakości HD</div>
+
+                <div class="buttons">
+                    <button onclick="window.open('${movie.videoLink}', '_blank')">▶ Odtwórz film</button>
+                    <button onclick="history.back()">◀ Wróć</button>
+                </div>
+            </div>
+        </div>
+
+        <iframe 
+            src="https://www.youtube.com/embed/${movie.trailerId}?autoplay=1&mute=1"
+            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen>
+        </iframe>
+    `;
+}
+
+loadMovie();
+</script>
+
+</body>
+</html>
